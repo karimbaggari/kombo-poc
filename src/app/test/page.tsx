@@ -1,10 +1,10 @@
-import KomboConnectButton from './KomboConnectButton';
+import KomboConnect from '../../components/komboConnect';
 
-export default function Page() {
+export default function Home() {
   return (
     <div>
-      <h1>Integrations</h1>
-      <KomboConnectButton />
+      <h1>My Next.js App</h1>
+      <KomboConnect />
     </div>
   );
 }

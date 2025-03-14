@@ -1,75 +1,44 @@
-import axios from "axios";
+import express from 'express';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+dotenv.config();
 
-class KomboService {
-  private apiKey: string;
-  private baseUrl: string;
+const app = express();
+app.use(express.json());
 
-  constructor() {
-    this.apiKey = process.env.KOMBO_API_KEY || "";
-    this.baseUrl = "https://api.kombo.dev/v1";
+const KOMBO_API_KEY = process.env.KOMBO_API_KEY;
+const REDIRECT_URL = 'https://your-app.com/kombo-callback';
+
+app.post('/api/create-connection-link', async (req, res) => {
+  try {
+    const response = await fetch('https://api.kombo.dev/v1/connect/create-link', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${KOMBO_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        end_user: { origin_id: req.body.userId },
+        redirect_url: REDIRECT_URL,
+      }),
+    });
+    const data = await response.json() as { link: string };
+
+
+    res.json({ link: data.link });
+  } catch (error) {
+    console.error('Error creating connection link:', error);
+    res.status(500).json({ error: 'Failed to create connection link' });
   }
+});
 
-  async createConnectionLink(userDetails: { email: string; companyName: string, redirectUri: string }) {
-    try {
-      const response = await axios.post(
-        `${this.baseUrl}/connect/create-link`,
-        {
-          end_user_email: userDetails.email,
-          end_user_organization_name: userDetails.companyName,
-          integration_category: "ATS",
-          integration_tool: "teamtailor",
-          unique_id: Date.now().toString(),
-          redirect_uri: userDetails.redirectUri,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+app.get('/kombo-callback', (req, res) => {
+  // Handle the redirect back from Kombo
+  // You might want to check for success/failure parameters here
+  res.send("Connection process completed!");
+});
 
-      return response.data.data.link;
-    } catch (error) {
-      console.error("Error creating connection link:", error);
-      throw error;
-    }
-  }
-
-
-  async handleIntegrationCreatedWebhook(payload: any) {
-    console.log("New integration created:", payload);
-
-    const integrationId = payload.data.id;
-    const tool = payload.data.tool;
-    const category = payload.data.category;
-    const endUser = payload.data.end_user;
-
-    console.log(`New ${category} integration created for ${tool}`);
-    console.log(`Integration ID: ${integrationId}`);
-    console.log(`End user: ${endUser.organization_name} (${endUser.creator_email})`);
-
-    return true;
-  }
-
-  async activateIntegration(token: string) {
-    try {
-      const response = await axios.post(
-        `${this.baseUrl}/connect/activate-integration`,
-        { token },
-        {
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      return response.data.data;
-    } catch (error) {
-      console.error("Error activating integration:", error);
-      throw error;
-    }
-  }
-}
-
-export const komboService = new KomboService();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
